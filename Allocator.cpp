@@ -29,7 +29,7 @@ void init(void * init_addr, size_t init_size)
 bool has_next_block(struct block * ptr)
 {
     bool resp = true;
-    if (ptr + ptr->header.size + HEADER_OFFSET >= (head + mem_size))
+    if ((void*)ptr + ptr->header.size + HEADER_OFFSET >= (head + mem_size))
         resp = false;
     return resp;
 }
@@ -86,7 +86,7 @@ void * mem_alloc(size_t size)
 
     data_ptr = (size_t) (&free_block->header + HEADER_OFFSET);
     tmp = data_ptr & 0x3;
-    cout << tmp << endl;
+ //   cout << tmp << endl;
     if (tmp != 0) // aligning to 4-byte retrieve style
     {
         prev_block = (struct block*)((void*)free_block - free_block->header.previous_size - HEADER_OFFSET);
@@ -128,16 +128,19 @@ struct block * seek_free(struct block * ptr, size_t size)
 
 bool has_next_block(struct block * ptr);
 
+// assuming block merge can be done only with free blocks
 struct block * merge_blocks(struct block * left, struct block * right)
 {
+    cout << "inside merge " << left->header.previous_size << endl;
     struct block * response = left;
     struct block * temp;
-    size_t lenght_add = 0;
-    lenght_add += right->header.size + HEADER_OFFSET;
+    size_t lenght_add = right->header.size;
+
+    lenght_add += HEADER_OFFSET;
     response->header.size += lenght_add;
     if (has_next_block(right))
     {
-        temp = right + lenght_add;
+        temp = (struct block*)((void*)right + lenght_add);
         temp->header.previous_size = response->header.size;
     }
     return response;
@@ -147,12 +150,44 @@ bool is_free(struct block * block) {
     return (bool) ((block->header.size & busy) >> (sizeof(size_t)-1));
 }
 
+struct block * next_block(struct block * current) {
+    return (struct block*)((void*)current + HEADER_OFFSET + !is_free(current) ?
+                           (current->header.size ^ busy) :
+                           current->header.size );
+}
+
+struct block * prev_block(struct block * current) {
+    return (struct block*)((void*)current - current->header.previous_size - HEADER_OFFSET);
+}
+
 void mem_free(void * addr)
 {
     struct block * busy_block;
-
-
+    struct block * check_block;
+    struct block * work_block;
 
     busy_block = (struct block*)(addr - HEADER_OFFSET);
+    busy_block->header.size ^= busy;  //before merging, left block must be free
+    work_block = busy_block;
+  //  cout << work_block << endl;
+//    cout << "inside" << endl;
+    if (has_prev_block(work_block) && is_free(check_block = prev_block(work_block)))
+        work_block = merge_blocks(check_block, work_block);
+//    cout << "merge doesn't work" << endl;
+    cout << is_free(next_block(work_block)) << endl;
+    if (has_next_block(work_block) && is_free(check_block = next_block(work_block)))
+        work_block = merge_blocks(work_block, check_block);
+//    cout << "merge doesn't work" << endl;
+    if ((void*)work_block < (void*)last_free)
+        last_free = work_block;
+    cout << last_free << endl;
+}
 
+void mem_dump(void * start) {
+    struct block * ptr = (struct block*)(start - HEADER_OFFSET);
+    int i = 1;
+    cout << (ptr->header.previous_size) << endl;
+    while (has_next_block(ptr)) {
+        cout << "Block " << i << " is " << (is_free(ptr) ? "free " : "busy ") << "and has size of " << ptr->header.size << endl;
+    }
 }
