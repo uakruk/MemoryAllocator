@@ -12,6 +12,7 @@ int main() {
     cout << "size_t " << sizeof(size_t) << endl;
     cout << "sizeof(header_block) " << sizeof(block_header) << endl;
     cout << "szieof(data_block)" << sizeof(data) << endl;
+    cout << "sizeof(void*)" << sizeof(void*) << endl;
     cout << (i = (int*)mem_alloc(16)) << endl;
     mem_free(i);
     cout << mem_alloc(20) << endl;

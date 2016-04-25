@@ -147,13 +147,17 @@ struct block * merge_blocks(struct block * left, struct block * right)
 }
 
 bool is_free(struct block * block) {
-    return (bool) ((block->header.size & busy) >> (sizeof(size_t)-1));
+    return (bool) !((block->header.size & busy) >> (sizeof(size_t)-1));
 }
 
 struct block * next_block(struct block * current) {
-    return (struct block*)((void*)current + HEADER_OFFSET + !is_free(current) ?
-                           (current->header.size ^ busy) :
-                           current->header.size );
+//    cout << "this " << current->header.size << endl;
+//    cout << is_free(current) << endl;
+    struct block * response = (struct block*)((void*)current + HEADER_OFFSET + (is_free(current) ?
+                                                                                 current->header.size :
+                                                                                 (current->header.size ^ busy)));
+//    cout << response << endl;
+    return response;
 }
 
 struct block * prev_block(struct block * current) {
@@ -169,18 +173,18 @@ void mem_free(void * addr)
     busy_block = (struct block*)(addr - HEADER_OFFSET);
     busy_block->header.size ^= busy;  //before merging, left block must be free
     work_block = busy_block;
-  //  cout << work_block << endl;
-//    cout << "inside" << endl;
+    cout << work_block << endl;
+    cout << "inside" << endl;
     if (has_prev_block(work_block) && is_free(check_block = prev_block(work_block)))
         work_block = merge_blocks(check_block, work_block);
-//    cout << "merge doesn't work" << endl;
-    cout << is_free(next_block(work_block)) << endl;
+ //   cout << "merge doesn't work" << endl;
+ //   cout << is_free(next_block(work_block)) << "sadf" << endl;
     if (has_next_block(work_block) && is_free(check_block = next_block(work_block)))
         work_block = merge_blocks(work_block, check_block);
 //    cout << "merge doesn't work" << endl;
     if ((void*)work_block < (void*)last_free)
         last_free = work_block;
-    cout << last_free << endl;
+//    cout << last_free << endl;
 }
 
 void mem_dump(void * start) {
