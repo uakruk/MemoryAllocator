@@ -84,7 +84,7 @@ void * mem_alloc(size_t size)
     size_t temp_size;
     size_t prev_block_size;
     size_t data_ptr;
-    free_block = seek_free(last_free, size); // thus we have a pointer to a free block
+    free_block = seek_free((struct block*)head, size); // thus we have a pointer to a free block
     //   cout << "inside mem_alloc " << free_block << endl;
     if (free_block == NULL)
         return NULL;
