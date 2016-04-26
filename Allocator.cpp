@@ -51,21 +51,21 @@ struct block * divide_block(struct block * parent, size_t size)
     struct block * second;
     parent ->header.size = first_size;
     parent -> header.size |= busy; // marking parent as busy
-    if (second_size > 0) {
+    if ((signed long int)second_size > 0) {
         second = (struct block *) ((void *) parent + first_size + HEADER_OFFSET);
         second->header.size = second_size;
         second->header.previous_size = first_size;
- //       cout << second_size << endl;
-  //      cout << first_size << endl;
+        //       cout << second_size << endl;
+        //      cout << first_size << endl;
     } else {
         second = parent;
- //       cout << "else" << endl;
+        //       cout << "else" << endl;
     }
     struct block * following;
     if (has_next_block(second))
     {
-        cout << second << endl;
-        following = (struct block*)((void*)second + second->header.size + HEADER_OFFSET);
+        //       cout << second << endl;
+        following = (struct block*)((void*)second + (is_free(second) ? second->header.size : second->header.size ^ busy) + HEADER_OFFSET);
         following->header.previous_size = second_size;
 //        cout << "tut" << endl;
     }
@@ -84,12 +84,12 @@ void * mem_alloc(size_t size)
     size_t temp_size;
     size_t prev_block_size;
     size_t data_ptr;
-    free_block = seek_free((struct block*)head, size); // thus we have a pointer to a free block
+    free_block = seek_free(last_free, size); // thus we have a pointer to a free block
     //   cout << "inside mem_alloc " << free_block << endl;
     if (free_block == NULL)
         return NULL;
 
-    data_ptr = (size_t) (&free_block->header + HEADER_OFFSET);
+    data_ptr = (size_t) (&free_block->header ); // + Header offset
     tmp = data_ptr & 0x3;
     //   cout << tmp << endl;
     if (tmp != 0) // aligning to 4-byte retrieve style
@@ -220,6 +220,7 @@ void mem_copy(void *addr1, void *addr2, size_t size) {
         iter++;
     }
 }
+void mem_recovery(bool left, struct block * b_left, bool right, struct block * b_right, struct block * middle, size_t middle_size);
 
 void mem_recovery(bool left, struct block * b_left, bool right, struct block * b_right, struct block * middle, size_t middle_size) {
     struct block * rbl;
