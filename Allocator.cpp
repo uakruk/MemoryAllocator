@@ -55,11 +55,11 @@ struct block * divide_block(struct block * parent, size_t size)
         second = (struct block *) ((void *) parent + first_size + HEADER_OFFSET);
         second->header.size = second_size;
         second->header.previous_size = first_size;
-        cout << second_size << endl;
-        cout << first_size << endl;
+ //       cout << second_size << endl;
+  //      cout << first_size << endl;
     } else {
         second = parent;
-        cout << "else" << endl;
+ //       cout << "else" << endl;
     }
     struct block * following;
     if (has_next_block(second))
@@ -67,7 +67,7 @@ struct block * divide_block(struct block * parent, size_t size)
         cout << second << endl;
         following = (struct block*)((void*)second + second->header.size + HEADER_OFFSET);
         following->header.previous_size = second_size;
-        cout << "tut" << endl;
+//        cout << "tut" << endl;
     }
     return parent;
 }
@@ -202,7 +202,75 @@ void mem_dump(void * start) {
     //   cout << (ptr->header.previous_size) << endl;
     do {
         curr = ptr;
-        cout << "Block " << i++ << " is " << (is_free(ptr) ? "free " : "busy ") << "and has size of " << (ptr->header.size ^ busy) << endl;
-        ptr = (struct block*)((void*)curr + HEADER_OFFSET + (is_free(curr) ? ptr->header.size : ptr->header.size ^ busy));
+        cout << "Block " << i++ << " is " << (is_free(ptr) ? "free " : "busy ") << "and has size of "
+        << (is_free(ptr) ? ptr->header.size : ptr->header.size ^ busy) << endl;
+        ptr = (struct block*)((void*)curr + HEADER_OFFSET + (is_free(curr) ?
+                                                             ptr->header.size :
+                                                             ptr->header.size ^ busy));
     } while (has_next_block(curr));
+}
+
+void mem_copy(void *addr1, void *addr2, size_t size) {
+    char data;
+    size_t iter = 0;
+    while (iter < size) {
+        data = *(char*)(addr1 + iter);
+        *(char*)(addr1 + iter) = *(char*)(addr2 + iter);
+        *(char*)(addr2 + iter) = data;
+        iter++;
+    }
+}
+
+void mem_recovery(bool left, struct block * b_left, bool right, struct block * b_right, struct block * middle, size_t middle_size) {
+    struct block * rbl;
+    struct block * lbl;
+    if (left) {
+        lbl = (struct block*)((void*)middle - b_left->header.size - HEADER_OFFSET);
+        *lbl = *b_left;
+    }
+    if (right) {
+        rbl = (struct block*)((void*)middle + middle_size + HEADER_OFFSET);
+        *rbl = *b_right;
+    }
+}
+
+void * mem_realloc(void * addr, size_t size) {
+    struct block * temp_block;
+    struct block rem_block;
+    struct block mem_dump_left;
+    struct block mem_dump_right;
+    bool left_rescue = false;
+    bool right_rescue = false;
+    void * ptr;
+    if (addr == NULL)
+        return mem_alloc(size);
+    struct block * curr = (struct block*)(addr - HEADER_OFFSET);
+    struct block curr_dump = *curr;
+    rem_block = *curr;
+    ptr = curr;
+    size_t curr_size = curr->header.size ^ busy; // there block is busy
+    if (size > curr_size) {
+        if (has_prev_block(curr) && is_free(prev_block(curr))) {
+            mem_dump_left = *prev_block(curr);
+            left_rescue = true;
+        }
+        if (has_next_block(curr) && is_free((next_block(curr)))) {
+            mem_dump_right = *next_block(curr);
+            right_rescue = true;
+        }
+        mem_free(addr);
+        ptr = mem_alloc(size);
+        if (ptr == NULL) {
+            mem_recovery(left_rescue, &mem_dump_left, right_rescue, &mem_dump_right, curr, curr_size);
+            *curr = curr_dump;
+            return NULL;
+        } else {
+            mem_copy((void*)curr + HEADER_OFFSET, ptr, curr_size);
+        }
+    } else {
+        mem_free(addr);
+        ptr = mem_alloc(size);
+        mem_copy((void*)curr+ HEADER_OFFSET, ptr, size);
+    }
+    return ptr;
 }
